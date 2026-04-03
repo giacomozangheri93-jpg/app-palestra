@@ -310,19 +310,16 @@ function loadWorkouts() {
 
 function persist() { localStorage.setItem('workouts_v3', JSON.stringify(WORKOUTS)); }
 
-function getKey(d,i) { return `g${d}_e${i}`; }
-function loadWeight(d,i) { return localStorage.getItem(getKey(d,i)) || ''; }
-function saveWeight(d,i,v) { localStorage.setItem(getKey(d,i), v); }
-function loadNote(d,i) { return localStorage.getItem('note_'+getKey(d,i)) || ''; }
-function saveNoteLS(d,i,v) { localStorage.setItem('note_'+getKey(d,i), v); }
+function saveWeight(d,i,v) { WORKOUTS[d][i].weight = v; persist(); }
+function saveNoteLS(d,i,v) { WORKOUTS[d][i].note = v; persist(); }
 
 // ---- RENDER ----
 function buildExercises(day) {
   const container = document.getElementById('exercises-'+day);
   let html = '';
   WORKOUTS[day].forEach((ex, idx) => {
-    const w = loadWeight(day, idx);
-    const note = loadNote(day, idx);
+    const w = ex.weight || '';
+    const note = ex.note || '';
     const isCardio = ex.type === 'cardio';
     const isBody = ex.type === 'bodyweight';
     const eName = ex.name.replace(/'/g,"\\'");
@@ -345,7 +342,7 @@ function buildExercises(day) {
       actions = `<div class="card-actions">
         <div class="weight-group">
           <button class="weight-btn" onclick="adjustWeight(${day},${idx},-2.5)">−</button>
-          <input class="weight-input" id="winput-${day}-${idx}" type="number" inputmode="decimal" step="0.5" value="${w}" placeholder="—" onchange="saveWeight(${day},${idx},this.value);showToast('✓ Peso salvato')">
+          <input class="weight-input" id="winput-${day}-${idx}" type="number" inputmode="decimal" step="0.5" value="${w}" placeholder="—" onchange="saveWeightFromInput(${day},${idx},this.value)">
           <span class="weight-label">kg</span>
           <button class="weight-btn" onclick="adjustWeight(${day},${idx},2.5)">+</button>
         </div>
@@ -373,6 +370,11 @@ function adjustWeight(day, idx, delta) {
   let val = parseFloat(input.value) || 0;
   val = Math.max(0, Math.round((val + delta) * 2) / 2);
   input.value = val;
+  saveWeight(day, idx, val);
+  showToast('✓ Peso salvato');
+}
+
+function saveWeightFromInput(day, idx, val) {
   saveWeight(day, idx, val);
   showToast('✓ Peso salvato');
 }
@@ -480,7 +482,8 @@ function saveEdit(){
   if(!name){ nameEl.classList.add('error'); setTimeout(()=>nameEl.classList.remove('error'),1500); nameEl.focus(); return; }
   const sets=document.getElementById('editSets').value.trim()||'—';
   const rest=parseInt(document.getElementById('editRest').value)||0;
-  const ex={name,sets,rest,type:currentType};
+  const existing = isAddMode ? {} : WORKOUTS[editDay][editIdx];
+  const ex={name,sets,rest,type:currentType, weight: existing.weight||'', note: existing.note||''};
   if(isAddMode){ WORKOUTS[editDay].push(ex); }
   else { WORKOUTS[editDay][editIdx]=ex; }
   persist();

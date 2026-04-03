@@ -1,938 +1,508 @@
-import SwiftUI
-import SwiftData
-import UIKit
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Scheda · Giacomo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap');
 
-// MARK: - Theme
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3a;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --text: #f0f0f5;
+    --muted: #6b6b85;
+    --danger: #ff4757;
+    --success: #2ed573;
+  }
 
-enum AppTheme {
-    static let bg = Color.white
-    static let text = Color.black
-    static let secondaryText = Color.black.opacity(0.65)
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-    static let card = Color(hex: "F6F6F6")          // bianco “pulito” da card
-    static let border = Color.black.opacity(0.10)
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
 
-    static let neon = Color(hex: "B6FF00")          // verde evidenziatore
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 20px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .logo { font-family: 'Bebas Neue', cursive; font-size: 28px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .logo span { color: var(--muted); font-size: 13px; display: block; font-family: 'DM Sans', sans-serif; letter-spacing: 0; font-weight: 400; margin-top: 2px; }
+  .epic-badge { background: var(--accent); color: #000; font-family: 'Bebas Neue', cursive; font-size: 16px; letter-spacing: 2px; padding: 4px 10px; border-radius: 4px; }
+
+  .tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-family: 'Bebas Neue', cursive; font-size: 15px; letter-spacing: 1.5px; padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: #000; }
+
+  .content { padding: 20px 16px 120px; }
+  .day-panel { display: none; }
+  .day-panel.active { display: block; }
+
+  .warmup-banner { background: linear-gradient(135deg, var(--surface2), #1a1a2e); border: 1px solid var(--border); border-left: 3px solid var(--accent2); border-radius: 10px; padding: 12px 14px; margin-bottom: 20px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .warmup-banner strong { color: var(--accent2); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 3px; }
+
+  .exercise-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; margin-bottom: 12px; overflow: hidden; }
+  .exercise-card.cardio { border-left: 3px solid #00d2d3; }
+  .exercise-card.cardio .card-header { background: linear-gradient(135deg, #00d2d31a, transparent); }
+
+  .card-header { display: flex; align-items: center; padding: 14px 16px; gap: 12px; }
+  .exercise-num { font-family: 'Bebas Neue', cursive; font-size: 22px; color: var(--accent); line-height: 1; min-width: 28px; }
+  .exercise-info { flex: 1; min-width: 0; }
+  .exercise-name { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; text-transform: capitalize; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .exercise-meta { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .badge.sets { color: var(--accent); border-color: #e8ff4740; background: #e8ff4710; }
+  .badge.rest { color: var(--accent2); border-color: #ff6b3540; background: #ff6b3510; }
+  .badge.cardio-badge { color: #00d2d3; border-color: #00d2d340; background: #00d2d310; }
+
+  .edit-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 8px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; flex-shrink: 0; transition: all 0.2s; }
+  .edit-btn:active { background: #e8ff4720; border-color: var(--accent); color: var(--accent); }
+
+  .card-actions { display: flex; gap: 8px; padding: 0 16px 14px; }
+
+  .weight-group { display: flex; align-items: center; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; flex: 1; }
+  .weight-btn { background: none; border: none; color: var(--muted); font-size: 20px; padding: 10px 14px; cursor: pointer; transition: color 0.15s; line-height: 1; }
+  .weight-btn:active { color: var(--accent); }
+  .weight-input { flex: 1; background: none; border: none; color: var(--text); text-align: center; font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 1px; outline: none; min-width: 0; }
+  .weight-label { color: var(--muted); font-size: 11px; padding-right: 10px; }
+
+  .timer-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); border-radius: 10px; padding: 10px 14px; cursor: pointer; font-size: 18px; transition: all 0.2s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .timer-btn span { font-size: 12px; font-weight: 600; }
+  .timer-btn.active { background: #e8ff4720; border-color: var(--accent); color: var(--accent); }
+  .timer-btn.done { background: #2ed57320; border-color: var(--success); color: var(--success); }
+
+  .note-row { padding: 0 16px 12px; }
+  .note-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; padding: 8px 12px; outline: none; resize: none; transition: border-color 0.2s; }
+  .note-input:focus { border-color: var(--accent); color: var(--text); }
+  .note-input::placeholder { color: var(--border); }
+
+  .add-exercise-btn { width: 100%; background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 14px; padding: 14px; cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; transition: all 0.2s; }
+  .add-exercise-btn:active { border-color: var(--accent); color: var(--accent); }
+
+  .section-label { font-family: 'Bebas Neue', cursive; font-size: 20px; letter-spacing: 2px; color: var(--accent); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .objective-banner { background: linear-gradient(135deg, #e8ff4715, #ff6b3510); border: 1px solid #e8ff4730; border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+  .obj-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .obj-value { font-family: 'Bebas Neue', cursive; font-size: 20px; color: var(--accent); letter-spacing: 1px; }
+  .instructor { font-size: 12px; color: var(--muted); text-align: right; }
+  .instructor strong { color: var(--text); display: block; }
+
+  /* TIMER OVERLAY */
+  .timer-overlay { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 2px solid var(--accent); padding: 16px 20px 40px; z-index: 200; transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 16px; }
+  .timer-overlay.visible { transform: translateY(0); }
+  .timer-exercise-name { flex: 1; font-size: 13px; color: var(--muted); line-height: 1.3; }
+  .timer-exercise-name strong { color: var(--text); display: block; font-size: 15px; }
+  .timer-circle { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+  .timer-svg { transform: rotate(-90deg); }
+  .timer-bg { fill: none; stroke: var(--surface2); stroke-width: 4; }
+  .timer-progress { fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+  .timer-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Bebas Neue', cursive; font-size: 26px; color: var(--accent); letter-spacing: 1px; }
+  .timer-stop { background: #ff475720; border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 14px 16px; cursor: pointer; font-size: 18px; flex-shrink: 0; }
+  .timer-overlay.done-state .timer-progress { stroke: var(--success); }
+  .timer-overlay.done-state .timer-text { color: var(--success); }
+
+  /* EDIT SHEET */
+  .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 300; opacity: 0; pointer-events: none; transition: opacity 0.3s; backdrop-filter: blur(4px); }
+  .sheet-backdrop.visible { opacity: 1; pointer-events: all; }
+
+  .edit-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); border-radius: 20px 20px 0 0; padding: 0 20px 50px; z-index: 400; transform: translateY(100%); transition: transform 0.38s cubic-bezier(0.34,1.2,0.64,1); max-height: 90vh; overflow-y: auto; }
+  .edit-sheet.visible { transform: translateY(0); }
+
+  .sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 12px auto 20px; }
+  .sheet-title { font-family: 'Bebas Neue', cursive; font-size: 22px; letter-spacing: 2px; color: var(--accent); margin-bottom: 20px; }
+
+  .field-group { margin-bottom: 16px; }
+  .field-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 8px; display: block; }
+  .field-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 15px; padding: 12px 14px; outline: none; transition: border-color 0.2s; -webkit-appearance: none; }
+  .field-input:focus { border-color: var(--accent); }
+  .field-input::placeholder { color: var(--border); }
+  .field-input.error { border-color: var(--danger); }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .type-selector { display: flex; gap: 8px; }
+  .type-option { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; padding: 10px 4px; cursor: pointer; text-align: center; transition: all 0.2s; }
+  .type-option.selected { background: #e8ff4720; border-color: var(--accent); color: var(--accent); }
+
+  .sheet-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .btn-primary { flex: 1; background: var(--accent); border: none; border-radius: 12px; color: #000; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; padding: 15px; cursor: pointer; }
+  .btn-primary:active { opacity: 0.8; }
+  .btn-danger { background: #ff475720; border: 1px solid var(--danger); border-radius: 12px; color: var(--danger); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 700; padding: 15px 20px; cursor: pointer; }
+  .btn-cancel { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; padding: 15px 18px; cursor: pointer; }
+
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--success); color: #000; font-weight: 600; font-size: 13px; padding: 10px 20px; border-radius: 20px; z-index: 500; transition: transform 0.3s ease; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast">✓ Salvato!</div>
+
+<div class="sheet-backdrop" id="sheetBackdrop" onclick="closeEditSheet()"></div>
+
+<div class="edit-sheet" id="editSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="sheetTitle">Modifica Esercizio</div>
+
+  <div class="field-group">
+    <label class="field-label">Nome esercizio</label>
+    <input class="field-input" id="editName" type="text" placeholder="es. Bench press">
+  </div>
+
+  <div class="row2">
+    <div class="field-group">
+      <label class="field-label">Serie × Rip.</label>
+      <input class="field-input" id="editSets" type="text" placeholder="es. 4×12">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Recupero (sec)</label>
+      <input class="field-input" id="editRest" type="number" inputmode="numeric" placeholder="es. 60">
+    </div>
+  </div>
+
+  <div class="field-group">
+    <label class="field-label">Tipo esercizio</label>
+    <div class="type-selector">
+      <div class="type-option selected" data-type="weight" onclick="selectType('weight')">🏋️ Pesi</div>
+      <div class="type-option" data-type="bodyweight" onclick="selectType('bodyweight')">💪 Corpo lib.</div>
+      <div class="type-option" data-type="cardio" onclick="selectType('cardio')">🚴 Cardio</div>
+    </div>
+  </div>
+
+  <div class="sheet-actions">
+    <button class="btn-primary" onclick="saveEdit()">Salva</button>
+    <button class="btn-danger" id="deleteBtn" onclick="deleteExercise()">🗑</button>
+    <button class="btn-cancel" onclick="closeEditSheet()">✕</button>
+  </div>
+</div>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">Giacomo<span>Scheda Dimagrimento · 2026</span></div>
+    <div class="epic-badge">EPIC GYM</div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchDay(0)">GIORNO 1</div>
+    <div class="tab" onclick="switchDay(1)">GIORNO 2</div>
+    <div class="tab" onclick="switchDay(2)">GIORNO 3</div>
+    <div class="tab" onclick="switchDay(3)">GIORNO 4</div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="day-panel active" id="day-0">
+    <div class="objective-banner">
+      <div><div class="obj-label">Obiettivo</div><div class="obj-value">Dimagrimento</div></div>
+      <div class="instructor"><strong>Luca Ferri</strong>Istruttore</div>
+    </div>
+    <div class="warmup-banner"><strong>🔥 Riscaldamento</strong>10 minuti prima di ogni sessione + mobilità articolare sui muscoli coinvolti</div>
+    <div class="section-label">Serie Principali</div>
+    <div id="exercises-0"></div>
+    <button class="add-exercise-btn" onclick="openAddSheet(0)">＋ Aggiungi esercizio</button>
+  </div>
+  <div class="day-panel" id="day-1">
+    <div class="warmup-banner"><strong>🔥 Riscaldamento</strong>10 minuti prima di ogni sessione + mobilità articolare sui muscoli coinvolti</div>
+    <div class="section-label">Serie Principali</div>
+    <div id="exercises-1"></div>
+    <button class="add-exercise-btn" onclick="openAddSheet(1)">＋ Aggiungi esercizio</button>
+  </div>
+  <div class="day-panel" id="day-2">
+    <div class="warmup-banner"><strong>🔥 Riscaldamento</strong>10 minuti prima di ogni sessione + mobilità articolare sui muscoli coinvolti</div>
+    <div class="section-label">Serie Principali</div>
+    <div id="exercises-2"></div>
+    <button class="add-exercise-btn" onclick="openAddSheet(2)">＋ Aggiungi esercizio</button>
+  </div>
+  <div class="day-panel" id="day-3">
+    <div class="warmup-banner"><strong>🔥 Riscaldamento</strong>10 minuti prima di ogni sessione + mobilità articolare sui muscoli coinvolti</div>
+    <div class="section-label">Serie Principali</div>
+    <div id="exercises-3"></div>
+    <button class="add-exercise-btn" onclick="openAddSheet(3)">＋ Aggiungi esercizio</button>
+  </div>
+</div>
+
+<div class="timer-overlay" id="timerOverlay">
+  <div class="timer-exercise-name"><strong id="timerExName">—</strong>Recupero in corso...</div>
+  <div class="timer-circle">
+    <svg class="timer-svg" width="80" height="80" viewBox="0 0 80 80">
+      <circle class="timer-bg" cx="40" cy="40" r="34"/>
+      <circle class="timer-progress" id="timerRing" cx="40" cy="40" r="34" stroke-dasharray="213.6" stroke-dashoffset="0"/>
+    </svg>
+    <div class="timer-text" id="timerDisplay">0</div>
+  </div>
+  <button class="timer-stop" onclick="stopTimer()">✕</button>
+</div>
+
+<script>
+const DEFAULT_WORKOUTS = [
+  [
+    {name:"Spinte panca 45°",sets:"4×12",rest:60,type:"weight"},
+    {name:"Leg press 45°",sets:"4×12",rest:60,type:"weight"},
+    {name:"Spinte panca piana",sets:"4×10",rest:60,type:"weight"},
+    {name:"Reverse crunch",sets:"3×20",rest:30,type:"bodyweight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+    {name:"Pectoral (macchina)",sets:"3×15",rest:45,type:"weight"},
+    {name:"Rematore manubri su panca",sets:"3×10",rest:30,type:"weight"},
+    {name:"Step up",sets:"3×10/gamba",rest:60,type:"bodyweight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+  ],
+  [
+    {name:"Squat",sets:"4×12",rest:60,type:"weight"},
+    {name:"Lat machine presa larga",sets:"4×10",rest:60,type:"weight"},
+    {name:"Chest press",sets:"4×12",rest:60,type:"weight"},
+    {name:'Side plank',sets:'3×40"',rest:30,type:"bodyweight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+    {name:"Croci ai cavi",sets:"3×15",rest:45,type:"weight"},
+    {name:"Pulley",sets:"3×12",rest:45,type:"weight"},
+    {name:"Military press",sets:"3×12",rest:45,type:"weight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+  ],
+  [
+    {name:"Bench press",sets:"4×10",rest:60,type:"weight"},
+    {name:"Hip thrust",sets:"4×12",rest:60,type:"weight"},
+    {name:"Lat machine triangolo",sets:"4×15",rest:60,type:"weight"},
+    {name:"Crunch",sets:"3×25",rest:30,type:"bodyweight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+    {name:"Step up",sets:"3×15",rest:45,type:"bodyweight"},
+    {name:"Piegamenti (push-up)",sets:"3×max",rest:45,type:"bodyweight"},
+    {name:"Alzate laterali",sets:"3×12",rest:45,type:"weight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+  ],
+  [
+    {name:"Leg press orizzontale",sets:"4×10",rest:60,type:"weight"},
+    {name:"Row (rematore)",sets:"4×12",rest:60,type:"weight"},
+    {name:"Panca inclinata bilanciere",sets:"4× Cedimento",rest:60,type:"weight"},
+    {name:'Leg raises',sets:'3×60"',rest:30,type:"bodyweight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+    {name:"Row (macchina)",sets:"3×12",rest:45,type:"weight"},
+    {name:"Leg curl",sets:"3×15",rest:45,type:"weight"},
+    {name:"Lento avanti su panca 75°",sets:"3×10",rest:45,type:"weight"},
+    {name:"Tapis roulant / Cyclette",sets:"10 min",rest:0,type:"cardio"},
+  ]
+];
+
+let WORKOUTS;
+
+function loadWorkouts() {
+  try {
+    const s = localStorage.getItem('workouts_v3');
+    if (s) { WORKOUTS = JSON.parse(s); return; }
+  } catch(e) {}
+  WORKOUTS = JSON.parse(JSON.stringify(DEFAULT_WORKOUTS));
 }
 
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
+function persist() { localStorage.setItem('workouts_v3', JSON.stringify(WORKOUTS)); }
 
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 6: (a, r, g, b) = (255, (int >> 16) & 255, (int >> 8) & 255, int & 255)
-        case 8: (a, r, g, b) = ((int >> 24) & 255, (int >> 16) & 255, (int >> 8) & 255, int & 255)
-        default:(a, r, g, b) = (255, 0, 0, 0)
-        }
+function getKey(d,i) { return `g${d}_e${i}`; }
+function loadWeight(d,i) { return localStorage.getItem(getKey(d,i)) || ''; }
+function saveWeight(d,i,v) { localStorage.setItem(getKey(d,i), v); }
+function loadNote(d,i) { return localStorage.getItem('note_'+getKey(d,i)) || ''; }
+function saveNoteLS(d,i,v) { localStorage.setItem('note_'+getKey(d,i), v); }
 
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
+// ---- RENDER ----
+function buildExercises(day) {
+  const container = document.getElementById('exercises-'+day);
+  let html = '';
+  WORKOUTS[day].forEach((ex, idx) => {
+    const w = loadWeight(day, idx);
+    const note = loadNote(day, idx);
+    const isCardio = ex.type === 'cardio';
+    const isBody = ex.type === 'bodyweight';
+    const eName = ex.name.replace(/'/g,"\\'");
+    const restSec = ex.rest || 0;
+
+    const badgeRest = restSec > 0 ? `<span class="badge rest">⏱ ${restSec}″</span>` : '';
+    const badgeCardio = isCardio ? `<span class="badge cardio-badge">🚴 Cardio</span>` : '';
+
+    let actions = '';
+    if (isCardio) {
+      actions = `<div class="card-actions">
+        <button class="timer-btn" style="flex:1" onclick="startTimer(${restSec>0?restSec:600},'${eName}',this)">▶ <span>Avvia 10 min</span></button>
+      </div>`;
+    } else if (isBody) {
+      actions = `<div class="card-actions">
+        <button class="timer-btn" style="flex:1" onclick="startTimer(${restSec},'${eName}',this)">⏱ <span>Recupero ${restSec}″</span></button>
+      </div>
+      <div class="note-row"><textarea class="note-input" rows="1" placeholder="Note..." oninput="saveNoteLS(${day},${idx},this.value)">${note}</textarea></div>`;
+    } else {
+      actions = `<div class="card-actions">
+        <div class="weight-group">
+          <button class="weight-btn" onclick="adjustWeight(${day},${idx},-2.5)">−</button>
+          <input class="weight-input" id="winput-${day}-${idx}" type="number" inputmode="decimal" step="0.5" value="${w}" placeholder="—" onchange="saveWeight(${day},${idx},this.value);showToast('✓ Peso salvato')">
+          <span class="weight-label">kg</span>
+          <button class="weight-btn" onclick="adjustWeight(${day},${idx},2.5)">+</button>
+        </div>
+        <button class="timer-btn" onclick="startTimer(${restSec},'${eName}',this)">⏱ <span>${restSec}″</span></button>
+      </div>
+      <div class="note-row"><textarea class="note-input" rows="1" placeholder="Note serie..." oninput="saveNoteLS(${day},${idx},this.value)">${note}</textarea></div>`;
     }
+
+    html += `<div class="exercise-card${isCardio?' cardio':''}">
+      <div class="card-header">
+        <div class="exercise-num">${String(idx+1).padStart(2,'0')}</div>
+        <div class="exercise-info">
+          <div class="exercise-name">${ex.name}</div>
+          <div class="exercise-meta"><span class="badge sets">${ex.sets}</span>${badgeRest}${badgeCardio}</div>
+        </div>
+        <button class="edit-btn" onclick="openEditSheet(${day},${idx})">✏️</button>
+      </div>${actions}</div>`;
+  });
+  container.innerHTML = html;
 }
 
-struct Card<Content: View>: View {
-    let content: Content
-    init(@ViewBuilder content: () -> Content) { self.content = content() }
-
-    var body: some View {
-        content
-            .padding(14)
-            .background(AppTheme.card)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(AppTheme.border, lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
-    }
+// ---- WEIGHT ----
+function adjustWeight(day, idx, delta) {
+  const input = document.getElementById(`winput-${day}-${idx}`);
+  let val = parseFloat(input.value) || 0;
+  val = Math.max(0, Math.round((val + delta) * 2) / 2);
+  input.value = val;
+  saveWeight(day, idx, val);
+  showToast('✓ Peso salvato');
 }
 
-// MARK: - ContentView
+// ---- TIMER ----
+let timerInterval=null, timerTotal=0, timerLeft=0, activeBtn=null;
 
-struct ContentView: View {
-    var body: some View {
-        TabView {
-            PlansView()
-                .tabItem { Label("Schede", systemImage: "list.bullet.rectangle") }
-
-            HistoryView()
-                .tabItem { Label("Storico", systemImage: "clock") }
-        }
-        .tint(AppTheme.neon) // accent
+function startTimer(sec, name, btn) {
+  if (!sec || sec<=0) return;
+  if (timerInterval) clearInterval(timerInterval);
+  if (activeBtn) { activeBtn.classList.remove('active','done'); if(activeBtn.dataset.orig) activeBtn.innerHTML=activeBtn.dataset.orig; }
+  timerTotal=sec; timerLeft=sec; activeBtn=btn; btn.dataset.orig=btn.innerHTML;
+  document.getElementById('timerExName').textContent=name;
+  const ov=document.getElementById('timerOverlay');
+  ov.classList.remove('done-state'); ov.classList.add('visible');
+  btn.classList.add('active'); updateTimerUI();
+  timerInterval=setInterval(()=>{
+    timerLeft--;
+    updateTimerUI();
+    if(timerLeft<=0){
+      clearInterval(timerInterval); timerInterval=null;
+      ov.classList.add('done-state');
+      document.getElementById('timerDisplay').textContent='✓';
+      btn.classList.remove('active'); btn.classList.add('done'); btn.innerHTML='✓ <span>Fatto!</span>';
+      if(navigator.vibrate) navigator.vibrate([200,100,200]);
+      setTimeout(()=>ov.classList.remove('visible'), 2500);
     }
+  },1000);
 }
 
-// MARK: - Schede
-
-struct PlansView: View {
-    @Environment(\.modelContext) private var ctx
-    @Query(sort: \WorkoutPlan.createdAt, order: .reverse) private var plans: [WorkoutPlan]
-    @State private var newPlanName: String = ""
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                AppTheme.bg.ignoresSafeArea()
-
-                List {
-                    Section("Nuova scheda") {
-                        HStack {
-                            TextField("Nome (es. A / B / Gambe)", text: $newPlanName)
-                                .foregroundStyle(AppTheme.text)
-
-                            Button("Aggiungi") {
-                                let name = newPlanName.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !name.isEmpty else { return }
-                                ctx.insert(WorkoutPlan(name: name))
-                                newPlanName = ""
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.neon)
-                            .foregroundStyle(.black)
-                        }
-                    }
-
-                    Section("Le tue schede") {
-                        if plans.isEmpty {
-                            ContentUnavailableView(
-                                "Nessuna scheda",
-                                systemImage: "rectangle.stack.badge.plus",
-                                description: Text("Crea una scheda e aggiungi gli esercizi.")
-                            )
-                        } else {
-                            ForEach(plans) { plan in
-                                NavigationLink {
-                                    PlanDetailView(plan: plan)
-                                } label: {
-                                    Text(plan.name)
-                                        .foregroundStyle(AppTheme.text)
-                                }
-                            }
-                            .onDelete(perform: deletePlans)
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("Schede")
-        }
-    }
-
-    private func deletePlans(_ indexSet: IndexSet) {
-        for i in indexSet { ctx.delete(plans[i]) }
-    }
+function updateTimerUI(){
+  const circ=213.6;
+  document.getElementById('timerRing').style.strokeDashoffset=circ*(1-timerLeft/timerTotal);
+  const m=Math.floor(timerLeft/60), s=timerLeft%60;
+  document.getElementById('timerDisplay').textContent=m>0?`${m}:${String(s).padStart(2,'0')}`:timerLeft;
 }
 
-struct PlanDetailView: View {
-    @Environment(\.modelContext) private var ctx
-    let plan: WorkoutPlan
-
-    @Query private var allExercises: [PlanExercise]
-    @State private var newExerciseName: String = ""
-    @State private var editing: PlanExercise?
-
-    init(plan: WorkoutPlan) {
-        self.plan = plan
-        let planName = plan.name
-        _allExercises = Query(
-            filter: #Predicate<PlanExercise> { $0.planName == planName },
-            sort: \.orderIndex
-        )
-    }
-
-    var body: some View {
-        let exercises = allExercises.sorted { $0.orderIndex < $1.orderIndex }
-
-        ZStack {
-            AppTheme.bg.ignoresSafeArea()
-
-            List {
-                Section("Aggiungi esercizio") {
-                    HStack {
-                        TextField("Nome esercizio (es. Panca piana)", text: $newExerciseName)
-                            .foregroundStyle(AppTheme.text)
-
-                        Button("Aggiungi") { addExercise() }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.neon)
-                            .foregroundStyle(.black)
-                    }
-                }
-
-                Section("Esercizi") {
-                    if exercises.isEmpty {
-                        ContentUnavailableView(
-                            "Nessun esercizio",
-                            systemImage: "figure.strengthtraining.traditional",
-                            description: Text("Aggiungi gli esercizi che hai in scheda.")
-                        )
-                    } else {
-                        ForEach(exercises) { ex in
-                            Card {
-                                VStack(alignment: .leading, spacing: 10) {
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(ex.name)
-                                            .font(.headline)
-                                            .foregroundStyle(AppTheme.text)
-
-                                        Spacer()
-
-                                        Button {
-                                            editing = ex
-                                        } label: {
-                                            Image(systemName: "slider.horizontal.3")
-                                                .foregroundStyle(.black)
-                                                .padding(.horizontal, 10)
-                                                .padding(.vertical, 6)
-                                                .background(AppTheme.neon)
-                                                .clipShape(Capsule())
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-
-                                    HStack(spacing: 12) {
-                                        Text("\(ex.targetSets)x\(ex.targetReps)")
-                                            .font(.subheadline)
-                                            .foregroundStyle(AppTheme.secondaryText)
-
-                                        if let w = ex.targetWeight {
-                                            Text("\(formatWeight(w)) kg")
-                                                .font(.subheadline)
-                                                .foregroundStyle(AppTheme.secondaryText)
-                                        } else {
-                                            Text("corpo libero")
-                                                .font(.subheadline)
-                                                .foregroundStyle(AppTheme.secondaryText)
-                                        }
-
-                                        Text("rest \(ex.restSeconds)s")
-                                            .font(.subheadline)
-                                            .foregroundStyle(AppTheme.secondaryText)
-
-                                        Spacer()
-                                    }
-                                }
-                            }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        }
-                        .onDelete { idx in deleteExercises(idx, exercises: exercises) }
-                        .onMove { from, to in moveExercises(from: from, to: to, exercises: exercises) }
-                    }
-                }
-
-                Section {
-                    NavigationLink {
-                        WorkoutView(plan: plan, exercises: exercises)
-                    } label: {
-                        Text("Inizia allenamento")
-                            .font(.headline)
-                            .foregroundStyle(.black)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 10)
-                            .background(AppTheme.neon)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                    .disabled(exercises.isEmpty)
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .scrollContentBackground(.hidden)
-        }
-        .navigationTitle(plan.name)
-        .toolbar { EditButton() }
-        .sheet(item: $editing) { ex in
-            ExerciseTargetsEditor(exercise: ex)
-        }
-    }
-
-    private func addExercise() {
-        let name = newExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-
-        let nextIndex = (allExercises.map { $0.orderIndex }.max() ?? -1) + 1
-        ctx.insert(PlanExercise(planName: plan.name, name: name, orderIndex: nextIndex))
-        newExerciseName = ""
-    }
-
-    private func deleteExercises(_ indexSet: IndexSet, exercises: [PlanExercise]) {
-        for i in indexSet { ctx.delete(exercises[i]) }
-        renumber()
-    }
-
-    private func moveExercises(from: IndexSet, to: Int, exercises: [PlanExercise]) {
-        var arr = exercises
-        arr.move(fromOffsets: from, toOffset: to)
-        for (i, ex) in arr.enumerated() { ex.orderIndex = i }
-    }
-
-    private func renumber() {
-        let remaining = allExercises.sorted { $0.orderIndex < $1.orderIndex }
-        for (i, ex) in remaining.enumerated() { ex.orderIndex = i }
-    }
-
-    private func formatWeight(_ w: Double) -> String {
-        if w.rounded() == w { return String(Int(w)) }
-        return String(w)
-    }
+function stopTimer(){
+  if(timerInterval) clearInterval(timerInterval); timerInterval=null;
+  document.getElementById('timerOverlay').classList.remove('visible');
+  if(activeBtn){ activeBtn.classList.remove('active','done'); if(activeBtn.dataset.orig) activeBtn.innerHTML=activeBtn.dataset.orig; activeBtn=null; }
 }
 
-struct ExerciseTargetsEditor: View {
-    @Environment(\.dismiss) private var dismiss
-    @Bindable var exercise: PlanExercise
-
-    @State private var weightText: String = ""
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                AppTheme.bg.ignoresSafeArea()
-
-                Form {
-                    Section("Target") {
-                        Stepper("Serie: \(exercise.targetSets)", value: $exercise.targetSets, in: 1...12)
-                        Stepper("Reps: \(exercise.targetReps)", value: $exercise.targetReps, in: 1...50)
-
-                        HStack {
-                            Text("Kg")
-                            Spacer()
-                            TextField("es. 80 (vuoto = corpo libero)", text: $weightText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .onAppear {
-                                    if let w = exercise.targetWeight {
-                                        weightText = (w.rounded() == w) ? String(Int(w)) : String(w)
-                                    } else {
-                                        weightText = ""
-                                    }
-                                }
-                                .onChange(of: weightText) { _, newValue in
-                                    let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
-                                    if trimmed.isEmpty { exercise.targetWeight = nil; return }
-                                    exercise.targetWeight = Double(trimmed.replacingOccurrences(of: ",", with: "."))
-                                }
-                        }
-                    }
-
-                    Section("Recupero") {
-                        Stepper("Secondi: \(exercise.restSeconds)", value: $exercise.restSeconds, in: 15...600, step: 15)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle(exercise.name)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Fine") { dismiss() }
-                        .tint(AppTheme.neon)
-                }
-            }
-        }
-    }
+// ---- TABS ----
+function switchDay(day){
+  document.querySelectorAll('.day-panel').forEach((p,i)=>p.classList.toggle('active',i===day));
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===day));
+  stopTimer();
 }
 
-// MARK: - Allenamento
-
-struct WorkoutView: View {
-    @Environment(\.modelContext) private var ctx
-    @Environment(\.dismiss) private var dismiss
-
-    let plan: WorkoutPlan
-    let exercises: [PlanExercise]
-
-    // carico tutte le serie storiche e calcolo "last time" in memoria
-    @Query(sort: \LoggedSet.createdAt, order: .reverse) private var allLoggedSets: [LoggedSet]
-
-    @State private var session: WorkoutSession?
-
-    // Draft sets (inserimento rapido)
-    @State private var setsByExercise: [String: [SetDraft]] = [:]
-
-    // Last time cache: exercise -> string
-    @State private var lastTimeByExercise: [String: String] = [:]
-
-    // Global timer
-    @State private var globalSecondsLeft: Int = 0
-    @State private var globalRunning: Bool = false
-    @State private var globalTimer: Timer?
-    @State private var globalPreset: Int = 90
-
-    struct SetDraft: Identifiable {
-        let id = UUID()
-        var weightText: String = ""
-        var repsText: String = ""
-    }
-
-    var body: some View {
-        ZStack {
-            AppTheme.bg.ignoresSafeArea()
-
-            List {
-                // Top: timer globale + info sessione
-                Section {
-                    Card {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Text(plan.name)
-                                    .font(.title2.weight(.bold))
-                                    .foregroundStyle(AppTheme.text)
-                                Spacer()
-                                Button("Salva") { save() }
-                                    .foregroundStyle(.black)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(AppTheme.neon)
-                                    .clipShape(Capsule())
-                            }
-
-                            globalTimerCard
-                        }
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                }
-
-                // Cards esercizi
-                ForEach(exercises, id: \.name) { ex in
-                    Section {
-                        Card {
-                            VStack(alignment: .leading, spacing: 12) {
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(ex.name)
-                                        .font(.headline)
-                                        .foregroundStyle(AppTheme.text)
-
-                                    Spacer()
-
-                                    if let last = lastTimeByExercise[ex.name] {
-                                        Text("Last time: \(last)")
-                                            .font(.caption)
-                                            .foregroundStyle(AppTheme.secondaryText)
-                                    }
-                                }
-
-                                HStack(spacing: 12) {
-                                    Text("\(ex.targetSets)x\(ex.targetReps)")
-                                        .foregroundStyle(AppTheme.secondaryText)
-
-                                    if let w = ex.targetWeight {
-                                        Text("\(formatWeight(w)) kg")
-                                            .foregroundStyle(AppTheme.secondaryText)
-                                    } else {
-                                        Text("corpo libero")
-                                            .foregroundStyle(AppTheme.secondaryText)
-                                    }
-
-                                    Text("rest \(ex.restSeconds)s")
-                                        .foregroundStyle(AppTheme.secondaryText)
-
-                                    Spacer()
-
-                                    Button {
-                                        startGlobalTimer(seconds: ex.restSeconds)
-                                    } label: {
-                                        Image(systemName: "timer")
-                                            .foregroundStyle(.black)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 6)
-                                            .background(AppTheme.neon)
-                                            .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-
-                                setsList(for: ex)
-
-                                Button {
-                                    addSetPrefilled(for: ex)
-                                } label: {
-                                    Text("Aggiungi serie")
-                                        .foregroundStyle(.black)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
-                                        .background(AppTheme.neon)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                    }
-                }
-            }
-            .scrollContentBackground(.hidden)
-        }
-        .navigationTitle("Allenamento")
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            if session == nil {
-                let s = WorkoutSession(planName: plan.name)
-                ctx.insert(s)
-                session = s
-            }
-
-            if let s = session {
-                computeLastTimeCache(currentSessionStart: s.startedAt)
-            }
-        }
-        .onDisappear {
-            globalTimer?.invalidate()
-            globalTimer = nil
-        }
-    }
-
-    private var globalTimerCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Timer globale")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppTheme.text)
-
-            HStack {
-                Text(timeString(globalSecondsLeft))
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(AppTheme.text)
-
-                Spacer()
-
-                Button {
-                    if globalRunning {
-                        pauseGlobalTimer()
-                    } else {
-                        // se è a zero, riparti dal preset
-                        if globalSecondsLeft == 0 { globalSecondsLeft = globalPreset }
-                        resumeGlobalTimer()
-                    }
-                } label: {
-                    Image(systemName: globalRunning ? "pause.fill" : "play.fill")
-                        .foregroundStyle(.black)
-                        .padding(10)
-                        .background(AppTheme.neon)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    resetGlobalTimer()
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .foregroundStyle(AppTheme.text)
-                        .padding(10)
-                        .background(AppTheme.card)
-                        .overlay(Circle().stroke(AppTheme.border, lineWidth: 1))
-                }
-                .buttonStyle(.plain)
-            }
-
-            HStack(spacing: 10) {
-                presetButton(60)
-                presetButton(90)
-                presetButton(120)
-                Spacer()
-                Text("Preset: \(globalPreset)s")
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.secondaryText)
-            }
-
-            // mini progress bar
-            if globalPreset > 0 {
-                let progress = 1.0 - (Double(globalSecondsLeft) / Double(globalPreset))
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.black.opacity(0.08))
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(AppTheme.neon)
-                            .frame(width: geo.size.width * max(0, min(1, progress)))
-                    }
-                }
-                .frame(height: 10)
-            }
-        }
-    }
-
-    private func presetButton(_ seconds: Int) -> some View {
-        Button {
-            globalPreset = seconds
-            globalSecondsLeft = seconds
-            globalRunning = false
-            globalTimer?.invalidate()
-            globalTimer = nil
-        } label: {
-            Text("\(seconds)s")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(seconds == globalPreset ? .black : AppTheme.text)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(seconds == globalPreset ? AppTheme.neon : AppTheme.card)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(AppTheme.border, lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Sets UI
-
-    @ViewBuilder
-    private func setsList(for ex: PlanExercise) -> some View {
-        let drafts = setsByExercise[ex.name] ?? []
-
-        if drafts.isEmpty {
-            Text("Nessuna serie")
-                .foregroundStyle(AppTheme.secondaryText)
-                .font(.subheadline)
-        } else {
-            VStack(spacing: 10) {
-                ForEach(drafts) { d in
-                    HStack(spacing: 10) {
-                        TextField("Kg", text: binding(ex.name, d.id, \.weightText))
-                            .keyboardType(.decimalPad)
-                            .padding(10)
-                            .background(Color.white)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
-                            .frame(maxWidth: 90)
-
-                        Button("−2.5") { bumpWeight(ex.name, d.id, delta: -2.5) }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(AppTheme.text)
-
-                        Button("+2.5") { bumpWeight(ex.name, d.id, delta: 2.5) }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(AppTheme.text)
-
-                        TextField("Reps", text: binding(ex.name, d.id, \.repsText))
-                            .keyboardType(.numberPad)
-                            .padding(10)
-                            .background(Color.white)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
-                            .frame(maxWidth: 80)
-
-                        Button("Dup") { duplicateSet(ex.name, d.id) }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(AppTheme.text)
-
-                        Button {
-                            deleteOne(ex.name, d.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(.black)
-                                .padding(8)
-                                .background(Color.black.opacity(0.06))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            }
-        }
-    }
-
-    private func addSetPrefilled(for ex: PlanExercise) {
-        let w = ex.targetWeight.map { formatWeight($0) } ?? ""
-        let r = String(ex.targetReps)
-        setsByExercise[ex.name, default: []].append(SetDraft(weightText: w, repsText: r))
-    }
-
-    private func binding(_ exercise: String, _ id: UUID, _ keyPath: WritableKeyPath<SetDraft, String>) -> Binding<String> {
-        Binding(
-            get: {
-                (setsByExercise[exercise] ?? []).first(where: { $0.id == id })?[keyPath: keyPath] ?? ""
-            },
-            set: { newValue in
-                guard var arr = setsByExercise[exercise],
-                      let idx = arr.firstIndex(where: { $0.id == id }) else { return }
-                arr[idx][keyPath: keyPath] = newValue
-                setsByExercise[exercise] = arr
-            }
-        )
-    }
-
-    private func deleteOne(_ exercise: String, _ id: UUID) {
-        guard var arr = setsByExercise[exercise] else { return }
-        arr.removeAll { $0.id == id }
-        setsByExercise[exercise] = arr
-    }
-
-    private func bumpWeight(_ exercise: String, _ id: UUID, delta: Double) {
-        guard var arr = setsByExercise[exercise],
-              let idx = arr.firstIndex(where: { $0.id == id }) else { return }
-
-        let current = Double(arr[idx].weightText.replacingOccurrences(of: ",", with: ".")) ?? 0
-        let next = max(0, current + delta)
-        arr[idx].weightText = formatWeight(next)
-        setsByExercise[exercise] = arr
-    }
-
-    private func duplicateSet(_ exercise: String, _ id: UUID) {
-        guard var arr = setsByExercise[exercise],
-              let idx = arr.firstIndex(where: { $0.id == id }) else { return }
-        arr.append(arr[idx])
-        setsByExercise[exercise] = arr
-    }
-
-    // MARK: - Last time
-
-    private func computeLastTimeCache(currentSessionStart: Date) {
-        var dict: [String: String] = [:]
-
-        // Prendo solo set “prima” della sessione corrente
-        // (così non si confonde con quelli che stai inserendo adesso)
-        let past = allLoggedSets.filter { $0.sessionDate < currentSessionStart }
-
-        // per ogni esercizio della scheda, trova l’ultimo set per createdAt
-        for ex in exercises.map(\.name) {
-            if let last = past.first(where: { $0.exerciseName == ex }) {
-                dict[ex] = formatSetSummary(weight: last.weight, reps: last.reps)
-            }
-        }
-
-        lastTimeByExercise = dict
-    }
-
-    private func formatSetSummary(weight: Double?, reps: Int) -> String {
-        if let w = weight {
-            return "\(formatWeight(w)) kg × \(reps)"
-        } else {
-            return "\(reps) reps"
-        }
-    }
-
-    // MARK: - Timer globale
-
-    private func startGlobalTimer(seconds: Int) {
-        globalPreset = seconds
-        globalSecondsLeft = seconds
-        globalRunning = true
-
-        globalTimer?.invalidate()
-        globalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if globalSecondsLeft > 0 {
-                globalSecondsLeft -= 1
-            } else {
-                globalRunning = false
-                globalTimer?.invalidate()
-                globalTimer = nil
-
-                let gen = UINotificationFeedbackGenerator()
-                gen.notificationOccurred(.success)
-            }
-        }
-    }
-
-    private func resumeGlobalTimer() {
-        guard globalSecondsLeft > 0 else { return }
-        globalRunning = true
-
-        globalTimer?.invalidate()
-        globalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-            if globalSecondsLeft > 0 {
-                globalSecondsLeft -= 1
-            } else {
-                globalRunning = false
-                globalTimer?.invalidate()
-                globalTimer = nil
-
-                let gen = UINotificationFeedbackGenerator()
-                gen.notificationOccurred(.success)
-            }
-        }
-    }
-
-    private func pauseGlobalTimer() {
-        globalRunning = false
-        globalTimer?.invalidate()
-        globalTimer = nil
-    }
-
-    private func resetGlobalTimer() {
-        pauseGlobalTimer()
-        globalSecondsLeft = globalPreset
-    }
-
-    // MARK: - Save
-
-    private func save() {
-        guard let s = session else { return }
-
-        for exName in exercises.map(\.name) {
-            let drafts = setsByExercise[exName] ?? []
-            for d in drafts {
-                let reps = Int(d.repsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-                if reps <= 0 { continue }
-
-                let wTrim = d.weightText.trimmingCharacters(in: .whitespacesAndNewlines)
-                let weight = wTrim.isEmpty ? nil : Double(wTrim.replacingOccurrences(of: ",", with: "."))
-
-                ctx.insert(
-                    LoggedSet(
-                        sessionDate: s.startedAt,
-                        exerciseName: exName,
-                        weight: weight,
-                        reps: reps
-                    )
-                )
-            }
-        }
-
-        s.finishedAt = .now
-        dismiss()
-    }
-
-    // MARK: - Utils
-
-    private func formatWeight(_ w: Double) -> String {
-        if w.rounded() == w { return String(Int(w)) }
-        return String(w)
-    }
-
-    private func timeString(_ s: Int) -> String {
-        let m = s / 60
-        let r = s % 60
-        return String(format: "%d:%02d", m, r)
-    }
+// ---- TOAST ----
+let toastTO;
+function showToast(msg='✓ Salvato!'){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTO); toastTO=setTimeout(()=>t.classList.remove('show'),1600);
 }
 
-// MARK: - Storico
+// ---- EDIT SHEET ----
+let editDay=null, editIdx=null, isAddMode=false, currentType='weight';
 
-struct HistoryView: View {
-    @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                AppTheme.bg.ignoresSafeArea()
-
-                List {
-                    if sessions.isEmpty {
-                        ContentUnavailableView(
-                            "Nessun allenamento",
-                            systemImage: "clock",
-                            description: Text("Quando salvi un allenamento, lo vedrai qui.")
-                        )
-                    } else {
-                        ForEach(sessions) { s in
-                            NavigationLink {
-                                SessionDetailView(session: s)
-                            } label: {
-                                Card {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(s.planName)
-                                            .font(.headline)
-                                            .foregroundStyle(AppTheme.text)
-
-                                        Text(s.startedAt.formatted(date: .abbreviated, time: .shortened))
-                                            .foregroundStyle(AppTheme.secondaryText)
-                                    }
-                                }
-                            }
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                        }
-                    }
-                }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("Storico")
-        }
-    }
+function selectType(type){
+  currentType=type;
+  document.querySelectorAll('.type-option').forEach(el=>el.classList.toggle('selected',el.dataset.type===type));
 }
 
-struct SessionDetailView: View {
-    let session: WorkoutSession
-    @Query private var sets: [LoggedSet]
-
-    init(session: WorkoutSession) {
-        self.session = session
-        let sessionDate = session.startedAt
-        _sets = Query(
-            filter: #Predicate<LoggedSet> { $0.sessionDate == sessionDate },
-            sort: \.createdAt
-        )
-    }
-
-    var body: some View {
-        ZStack {
-            AppTheme.bg.ignoresSafeArea()
-
-            List {
-                Section {
-                    Card {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Scheda: \(session.planName)")
-                                .foregroundStyle(AppTheme.text)
-
-                            Text("Inizio: \(session.startedAt.formatted(date: .abbreviated, time: .shortened))")
-                                .foregroundStyle(AppTheme.secondaryText)
-
-                            if let end = session.finishedAt {
-                                Text("Fine: \(end.formatted(date: .abbreviated, time: .shortened))")
-                                    .foregroundStyle(AppTheme.secondaryText)
-                            }
-                        }
-                    }
-                }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
-
-                let grouped = Dictionary(grouping: sets, by: { $0.exerciseName })
-
-                ForEach(grouped.keys.sorted(), id: \.self) { ex in
-                    Section {
-                        Card {
-                            VStack(alignment: .leading, spacing: 10) {
-                                Text(ex)
-                                    .font(.headline)
-                                    .foregroundStyle(AppTheme.text)
-
-                                let arr = grouped[ex] ?? []
-                                ForEach(Array(arr.enumerated()), id: \.offset) { idx, s in
-                                    HStack {
-                                        Text("#\(idx + 1)")
-                                            .frame(width: 36, alignment: .leading)
-                                            .foregroundStyle(AppTheme.secondaryText)
-
-                                        if let w = s.weight {
-                                            Text("\(formatWeight(w)) kg")
-                                                .frame(maxWidth: 120, alignment: .leading)
-                                                .foregroundStyle(AppTheme.text)
-                                        } else {
-                                            Text("—")
-                                                .frame(maxWidth: 120, alignment: .leading)
-                                                .foregroundStyle(AppTheme.secondaryText)
-                                        }
-
-                                        Text("\(s.reps) reps")
-                                            .foregroundStyle(AppTheme.text)
-
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                }
-            }
-            .scrollContentBackground(.hidden)
-        }
-        .navigationTitle("Dettaglio")
-    }
-
-    private func formatWeight(_ w: Double) -> String {
-        if w.rounded() == w { return String(Int(w)) }
-        return String(w)
-    }
+function openEditSheet(day, idx){
+  editDay=day; editIdx=idx; isAddMode=false;
+  const ex=WORKOUTS[day][idx];
+  document.getElementById('sheetTitle').textContent='Modifica Esercizio';
+  document.getElementById('editName').value=ex.name;
+  document.getElementById('editSets').value=ex.sets;
+  document.getElementById('editRest').value=ex.rest||'';
+  document.getElementById('deleteBtn').style.display='';
+  selectType(ex.type||'weight');
+  openSheet();
 }
+
+function openAddSheet(day){
+  editDay=day; editIdx=null; isAddMode=true;
+  document.getElementById('sheetTitle').textContent='Nuovo Esercizio';
+  document.getElementById('editName').value='';
+  document.getElementById('editSets').value='';
+  document.getElementById('editRest').value='60';
+  document.getElementById('deleteBtn').style.display='none';
+  selectType('weight');
+  openSheet();
+}
+
+function openSheet(){
+  document.getElementById('editSheet').classList.add('visible');
+  document.getElementById('sheetBackdrop').classList.add('visible');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('editName').focus(),400);
+}
+
+function closeEditSheet(){
+  document.getElementById('editSheet').classList.remove('visible');
+  document.getElementById('sheetBackdrop').classList.remove('visible');
+  document.body.style.overflow='';
+}
+
+function saveEdit(){
+  const nameEl=document.getElementById('editName');
+  const name=nameEl.value.trim();
+  if(!name){ nameEl.classList.add('error'); setTimeout(()=>nameEl.classList.remove('error'),1500); nameEl.focus(); return; }
+  const sets=document.getElementById('editSets').value.trim()||'—';
+  const rest=parseInt(document.getElementById('editRest').value)||0;
+  const ex={name,sets,rest,type:currentType};
+  if(isAddMode){ WORKOUTS[editDay].push(ex); }
+  else { WORKOUTS[editDay][editIdx]=ex; }
+  persist();
+  buildExercises(editDay);
+  closeEditSheet();
+  showToast(isAddMode?'✓ Esercizio aggiunto':'✓ Esercizio aggiornato');
+}
+
+function deleteExercise(){
+  if(editIdx===null) return;
+  const name=WORKOUTS[editDay][editIdx].name;
+  if(!confirm(`Eliminare "${name}"?`)) return;
+  WORKOUTS[editDay].splice(editIdx,1);
+  persist();
+  buildExercises(editDay);
+  closeEditSheet();
+  showToast('🗑 Eliminato');
+}
+
+// ---- INIT ----
+loadWorkouts();
+[0,1,2,3].forEach(d=>buildExercises(d));
+</script>
+</body>
+</html>

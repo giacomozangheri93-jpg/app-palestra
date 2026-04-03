@@ -1,0 +1,938 @@
+import SwiftUI
+import SwiftData
+import UIKit
+
+// MARK: - Theme
+
+enum AppTheme {
+    static let bg = Color.white
+    static let text = Color.black
+    static let secondaryText = Color.black.opacity(0.65)
+
+    static let card = Color(hex: "F6F6F6")          // bianco “pulito” da card
+    static let border = Color.black.opacity(0.10)
+
+    static let neon = Color(hex: "B6FF00")          // verde evidenziatore
+}
+
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 6: (a, r, g, b) = (255, (int >> 16) & 255, (int >> 8) & 255, int & 255)
+        case 8: (a, r, g, b) = ((int >> 24) & 255, (int >> 16) & 255, (int >> 8) & 255, int & 255)
+        default:(a, r, g, b) = (255, 0, 0, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}
+
+struct Card<Content: View>: View {
+    let content: Content
+    init(@ViewBuilder content: () -> Content) { self.content = content() }
+
+    var body: some View {
+        content
+            .padding(14)
+            .background(AppTheme.card)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(AppTheme.border, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: .black.opacity(0.04), radius: 10, x: 0, y: 6)
+    }
+}
+
+// MARK: - ContentView
+
+struct ContentView: View {
+    var body: some View {
+        TabView {
+            PlansView()
+                .tabItem { Label("Schede", systemImage: "list.bullet.rectangle") }
+
+            HistoryView()
+                .tabItem { Label("Storico", systemImage: "clock") }
+        }
+        .tint(AppTheme.neon) // accent
+    }
+}
+
+// MARK: - Schede
+
+struct PlansView: View {
+    @Environment(\.modelContext) private var ctx
+    @Query(sort: \WorkoutPlan.createdAt, order: .reverse) private var plans: [WorkoutPlan]
+    @State private var newPlanName: String = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.bg.ignoresSafeArea()
+
+                List {
+                    Section("Nuova scheda") {
+                        HStack {
+                            TextField("Nome (es. A / B / Gambe)", text: $newPlanName)
+                                .foregroundStyle(AppTheme.text)
+
+                            Button("Aggiungi") {
+                                let name = newPlanName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !name.isEmpty else { return }
+                                ctx.insert(WorkoutPlan(name: name))
+                                newPlanName = ""
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.neon)
+                            .foregroundStyle(.black)
+                        }
+                    }
+
+                    Section("Le tue schede") {
+                        if plans.isEmpty {
+                            ContentUnavailableView(
+                                "Nessuna scheda",
+                                systemImage: "rectangle.stack.badge.plus",
+                                description: Text("Crea una scheda e aggiungi gli esercizi.")
+                            )
+                        } else {
+                            ForEach(plans) { plan in
+                                NavigationLink {
+                                    PlanDetailView(plan: plan)
+                                } label: {
+                                    Text(plan.name)
+                                        .foregroundStyle(AppTheme.text)
+                                }
+                            }
+                            .onDelete(perform: deletePlans)
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("Schede")
+        }
+    }
+
+    private func deletePlans(_ indexSet: IndexSet) {
+        for i in indexSet { ctx.delete(plans[i]) }
+    }
+}
+
+struct PlanDetailView: View {
+    @Environment(\.modelContext) private var ctx
+    let plan: WorkoutPlan
+
+    @Query private var allExercises: [PlanExercise]
+    @State private var newExerciseName: String = ""
+    @State private var editing: PlanExercise?
+
+    init(plan: WorkoutPlan) {
+        self.plan = plan
+        let planName = plan.name
+        _allExercises = Query(
+            filter: #Predicate<PlanExercise> { $0.planName == planName },
+            sort: \.orderIndex
+        )
+    }
+
+    var body: some View {
+        let exercises = allExercises.sorted { $0.orderIndex < $1.orderIndex }
+
+        ZStack {
+            AppTheme.bg.ignoresSafeArea()
+
+            List {
+                Section("Aggiungi esercizio") {
+                    HStack {
+                        TextField("Nome esercizio (es. Panca piana)", text: $newExerciseName)
+                            .foregroundStyle(AppTheme.text)
+
+                        Button("Aggiungi") { addExercise() }
+                            .buttonStyle(.borderedProminent)
+                            .tint(AppTheme.neon)
+                            .foregroundStyle(.black)
+                    }
+                }
+
+                Section("Esercizi") {
+                    if exercises.isEmpty {
+                        ContentUnavailableView(
+                            "Nessun esercizio",
+                            systemImage: "figure.strengthtraining.traditional",
+                            description: Text("Aggiungi gli esercizi che hai in scheda.")
+                        )
+                    } else {
+                        ForEach(exercises) { ex in
+                            Card {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(ex.name)
+                                            .font(.headline)
+                                            .foregroundStyle(AppTheme.text)
+
+                                        Spacer()
+
+                                        Button {
+                                            editing = ex
+                                        } label: {
+                                            Image(systemName: "slider.horizontal.3")
+                                                .foregroundStyle(.black)
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 6)
+                                                .background(AppTheme.neon)
+                                                .clipShape(Capsule())
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+
+                                    HStack(spacing: 12) {
+                                        Text("\(ex.targetSets)x\(ex.targetReps)")
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.secondaryText)
+
+                                        if let w = ex.targetWeight {
+                                            Text("\(formatWeight(w)) kg")
+                                                .font(.subheadline)
+                                                .foregroundStyle(AppTheme.secondaryText)
+                                        } else {
+                                            Text("corpo libero")
+                                                .font(.subheadline)
+                                                .foregroundStyle(AppTheme.secondaryText)
+                                        }
+
+                                        Text("rest \(ex.restSeconds)s")
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.secondaryText)
+
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+                        .onDelete { idx in deleteExercises(idx, exercises: exercises) }
+                        .onMove { from, to in moveExercises(from: from, to: to, exercises: exercises) }
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        WorkoutView(plan: plan, exercises: exercises)
+                    } label: {
+                        Text("Inizia allenamento")
+                            .font(.headline)
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.neon)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .disabled(exercises.isEmpty)
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle(plan.name)
+        .toolbar { EditButton() }
+        .sheet(item: $editing) { ex in
+            ExerciseTargetsEditor(exercise: ex)
+        }
+    }
+
+    private func addExercise() {
+        let name = newExerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+
+        let nextIndex = (allExercises.map { $0.orderIndex }.max() ?? -1) + 1
+        ctx.insert(PlanExercise(planName: plan.name, name: name, orderIndex: nextIndex))
+        newExerciseName = ""
+    }
+
+    private func deleteExercises(_ indexSet: IndexSet, exercises: [PlanExercise]) {
+        for i in indexSet { ctx.delete(exercises[i]) }
+        renumber()
+    }
+
+    private func moveExercises(from: IndexSet, to: Int, exercises: [PlanExercise]) {
+        var arr = exercises
+        arr.move(fromOffsets: from, toOffset: to)
+        for (i, ex) in arr.enumerated() { ex.orderIndex = i }
+    }
+
+    private func renumber() {
+        let remaining = allExercises.sorted { $0.orderIndex < $1.orderIndex }
+        for (i, ex) in remaining.enumerated() { ex.orderIndex = i }
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        if w.rounded() == w { return String(Int(w)) }
+        return String(w)
+    }
+}
+
+struct ExerciseTargetsEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @Bindable var exercise: PlanExercise
+
+    @State private var weightText: String = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.bg.ignoresSafeArea()
+
+                Form {
+                    Section("Target") {
+                        Stepper("Serie: \(exercise.targetSets)", value: $exercise.targetSets, in: 1...12)
+                        Stepper("Reps: \(exercise.targetReps)", value: $exercise.targetReps, in: 1...50)
+
+                        HStack {
+                            Text("Kg")
+                            Spacer()
+                            TextField("es. 80 (vuoto = corpo libero)", text: $weightText)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .onAppear {
+                                    if let w = exercise.targetWeight {
+                                        weightText = (w.rounded() == w) ? String(Int(w)) : String(w)
+                                    } else {
+                                        weightText = ""
+                                    }
+                                }
+                                .onChange(of: weightText) { _, newValue in
+                                    let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    if trimmed.isEmpty { exercise.targetWeight = nil; return }
+                                    exercise.targetWeight = Double(trimmed.replacingOccurrences(of: ",", with: "."))
+                                }
+                        }
+                    }
+
+                    Section("Recupero") {
+                        Stepper("Secondi: \(exercise.restSeconds)", value: $exercise.restSeconds, in: 15...600, step: 15)
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(exercise.name)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Fine") { dismiss() }
+                        .tint(AppTheme.neon)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Allenamento
+
+struct WorkoutView: View {
+    @Environment(\.modelContext) private var ctx
+    @Environment(\.dismiss) private var dismiss
+
+    let plan: WorkoutPlan
+    let exercises: [PlanExercise]
+
+    // carico tutte le serie storiche e calcolo "last time" in memoria
+    @Query(sort: \LoggedSet.createdAt, order: .reverse) private var allLoggedSets: [LoggedSet]
+
+    @State private var session: WorkoutSession?
+
+    // Draft sets (inserimento rapido)
+    @State private var setsByExercise: [String: [SetDraft]] = [:]
+
+    // Last time cache: exercise -> string
+    @State private var lastTimeByExercise: [String: String] = [:]
+
+    // Global timer
+    @State private var globalSecondsLeft: Int = 0
+    @State private var globalRunning: Bool = false
+    @State private var globalTimer: Timer?
+    @State private var globalPreset: Int = 90
+
+    struct SetDraft: Identifiable {
+        let id = UUID()
+        var weightText: String = ""
+        var repsText: String = ""
+    }
+
+    var body: some View {
+        ZStack {
+            AppTheme.bg.ignoresSafeArea()
+
+            List {
+                // Top: timer globale + info sessione
+                Section {
+                    Card {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text(plan.name)
+                                    .font(.title2.weight(.bold))
+                                    .foregroundStyle(AppTheme.text)
+                                Spacer()
+                                Button("Salva") { save() }
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(AppTheme.neon)
+                                    .clipShape(Capsule())
+                            }
+
+                            globalTimerCard
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+
+                // Cards esercizi
+                ForEach(exercises, id: \.name) { ex in
+                    Section {
+                        Card {
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .firstTextBaseline) {
+                                    Text(ex.name)
+                                        .font(.headline)
+                                        .foregroundStyle(AppTheme.text)
+
+                                    Spacer()
+
+                                    if let last = lastTimeByExercise[ex.name] {
+                                        Text("Last time: \(last)")
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    }
+                                }
+
+                                HStack(spacing: 12) {
+                                    Text("\(ex.targetSets)x\(ex.targetReps)")
+                                        .foregroundStyle(AppTheme.secondaryText)
+
+                                    if let w = ex.targetWeight {
+                                        Text("\(formatWeight(w)) kg")
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    } else {
+                                        Text("corpo libero")
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    }
+
+                                    Text("rest \(ex.restSeconds)s")
+                                        .foregroundStyle(AppTheme.secondaryText)
+
+                                    Spacer()
+
+                                    Button {
+                                        startGlobalTimer(seconds: ex.restSeconds)
+                                    } label: {
+                                        Image(systemName: "timer")
+                                            .foregroundStyle(.black)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 6)
+                                            .background(AppTheme.neon)
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+
+                                setsList(for: ex)
+
+                                Button {
+                                    addSetPrefilled(for: ex)
+                                } label: {
+                                    Text("Aggiungi serie")
+                                        .foregroundStyle(.black)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(AppTheme.neon)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                    }
+                }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle("Allenamento")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if session == nil {
+                let s = WorkoutSession(planName: plan.name)
+                ctx.insert(s)
+                session = s
+            }
+
+            if let s = session {
+                computeLastTimeCache(currentSessionStart: s.startedAt)
+            }
+        }
+        .onDisappear {
+            globalTimer?.invalidate()
+            globalTimer = nil
+        }
+    }
+
+    private var globalTimerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Timer globale")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.text)
+
+            HStack {
+                Text(timeString(globalSecondsLeft))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.text)
+
+                Spacer()
+
+                Button {
+                    if globalRunning {
+                        pauseGlobalTimer()
+                    } else {
+                        // se è a zero, riparti dal preset
+                        if globalSecondsLeft == 0 { globalSecondsLeft = globalPreset }
+                        resumeGlobalTimer()
+                    }
+                } label: {
+                    Image(systemName: globalRunning ? "pause.fill" : "play.fill")
+                        .foregroundStyle(.black)
+                        .padding(10)
+                        .background(AppTheme.neon)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    resetGlobalTimer()
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .foregroundStyle(AppTheme.text)
+                        .padding(10)
+                        .background(AppTheme.card)
+                        .overlay(Circle().stroke(AppTheme.border, lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: 10) {
+                presetButton(60)
+                presetButton(90)
+                presetButton(120)
+                Spacer()
+                Text("Preset: \(globalPreset)s")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.secondaryText)
+            }
+
+            // mini progress bar
+            if globalPreset > 0 {
+                let progress = 1.0 - (Double(globalSecondsLeft) / Double(globalPreset))
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.black.opacity(0.08))
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(AppTheme.neon)
+                            .frame(width: geo.size.width * max(0, min(1, progress)))
+                    }
+                }
+                .frame(height: 10)
+            }
+        }
+    }
+
+    private func presetButton(_ seconds: Int) -> some View {
+        Button {
+            globalPreset = seconds
+            globalSecondsLeft = seconds
+            globalRunning = false
+            globalTimer?.invalidate()
+            globalTimer = nil
+        } label: {
+            Text("\(seconds)s")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(seconds == globalPreset ? .black : AppTheme.text)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(seconds == globalPreset ? AppTheme.neon : AppTheme.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(AppTheme.border, lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Sets UI
+
+    @ViewBuilder
+    private func setsList(for ex: PlanExercise) -> some View {
+        let drafts = setsByExercise[ex.name] ?? []
+
+        if drafts.isEmpty {
+            Text("Nessuna serie")
+                .foregroundStyle(AppTheme.secondaryText)
+                .font(.subheadline)
+        } else {
+            VStack(spacing: 10) {
+                ForEach(drafts) { d in
+                    HStack(spacing: 10) {
+                        TextField("Kg", text: binding(ex.name, d.id, \.weightText))
+                            .keyboardType(.decimalPad)
+                            .padding(10)
+                            .background(Color.white)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
+                            .frame(maxWidth: 90)
+
+                        Button("−2.5") { bumpWeight(ex.name, d.id, delta: -2.5) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(AppTheme.text)
+
+                        Button("+2.5") { bumpWeight(ex.name, d.id, delta: 2.5) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(AppTheme.text)
+
+                        TextField("Reps", text: binding(ex.name, d.id, \.repsText))
+                            .keyboardType(.numberPad)
+                            .padding(10)
+                            .background(Color.white)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(AppTheme.border, lineWidth: 1))
+                            .frame(maxWidth: 80)
+
+                        Button("Dup") { duplicateSet(ex.name, d.id) }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(AppTheme.text)
+
+                        Button {
+                            deleteOne(ex.name, d.id)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.black)
+                                .padding(8)
+                                .background(Color.black.opacity(0.06))
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func addSetPrefilled(for ex: PlanExercise) {
+        let w = ex.targetWeight.map { formatWeight($0) } ?? ""
+        let r = String(ex.targetReps)
+        setsByExercise[ex.name, default: []].append(SetDraft(weightText: w, repsText: r))
+    }
+
+    private func binding(_ exercise: String, _ id: UUID, _ keyPath: WritableKeyPath<SetDraft, String>) -> Binding<String> {
+        Binding(
+            get: {
+                (setsByExercise[exercise] ?? []).first(where: { $0.id == id })?[keyPath: keyPath] ?? ""
+            },
+            set: { newValue in
+                guard var arr = setsByExercise[exercise],
+                      let idx = arr.firstIndex(where: { $0.id == id }) else { return }
+                arr[idx][keyPath: keyPath] = newValue
+                setsByExercise[exercise] = arr
+            }
+        )
+    }
+
+    private func deleteOne(_ exercise: String, _ id: UUID) {
+        guard var arr = setsByExercise[exercise] else { return }
+        arr.removeAll { $0.id == id }
+        setsByExercise[exercise] = arr
+    }
+
+    private func bumpWeight(_ exercise: String, _ id: UUID, delta: Double) {
+        guard var arr = setsByExercise[exercise],
+              let idx = arr.firstIndex(where: { $0.id == id }) else { return }
+
+        let current = Double(arr[idx].weightText.replacingOccurrences(of: ",", with: ".")) ?? 0
+        let next = max(0, current + delta)
+        arr[idx].weightText = formatWeight(next)
+        setsByExercise[exercise] = arr
+    }
+
+    private func duplicateSet(_ exercise: String, _ id: UUID) {
+        guard var arr = setsByExercise[exercise],
+              let idx = arr.firstIndex(where: { $0.id == id }) else { return }
+        arr.append(arr[idx])
+        setsByExercise[exercise] = arr
+    }
+
+    // MARK: - Last time
+
+    private func computeLastTimeCache(currentSessionStart: Date) {
+        var dict: [String: String] = [:]
+
+        // Prendo solo set “prima” della sessione corrente
+        // (così non si confonde con quelli che stai inserendo adesso)
+        let past = allLoggedSets.filter { $0.sessionDate < currentSessionStart }
+
+        // per ogni esercizio della scheda, trova l’ultimo set per createdAt
+        for ex in exercises.map(\.name) {
+            if let last = past.first(where: { $0.exerciseName == ex }) {
+                dict[ex] = formatSetSummary(weight: last.weight, reps: last.reps)
+            }
+        }
+
+        lastTimeByExercise = dict
+    }
+
+    private func formatSetSummary(weight: Double?, reps: Int) -> String {
+        if let w = weight {
+            return "\(formatWeight(w)) kg × \(reps)"
+        } else {
+            return "\(reps) reps"
+        }
+    }
+
+    // MARK: - Timer globale
+
+    private func startGlobalTimer(seconds: Int) {
+        globalPreset = seconds
+        globalSecondsLeft = seconds
+        globalRunning = true
+
+        globalTimer?.invalidate()
+        globalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if globalSecondsLeft > 0 {
+                globalSecondsLeft -= 1
+            } else {
+                globalRunning = false
+                globalTimer?.invalidate()
+                globalTimer = nil
+
+                let gen = UINotificationFeedbackGenerator()
+                gen.notificationOccurred(.success)
+            }
+        }
+    }
+
+    private func resumeGlobalTimer() {
+        guard globalSecondsLeft > 0 else { return }
+        globalRunning = true
+
+        globalTimer?.invalidate()
+        globalTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if globalSecondsLeft > 0 {
+                globalSecondsLeft -= 1
+            } else {
+                globalRunning = false
+                globalTimer?.invalidate()
+                globalTimer = nil
+
+                let gen = UINotificationFeedbackGenerator()
+                gen.notificationOccurred(.success)
+            }
+        }
+    }
+
+    private func pauseGlobalTimer() {
+        globalRunning = false
+        globalTimer?.invalidate()
+        globalTimer = nil
+    }
+
+    private func resetGlobalTimer() {
+        pauseGlobalTimer()
+        globalSecondsLeft = globalPreset
+    }
+
+    // MARK: - Save
+
+    private func save() {
+        guard let s = session else { return }
+
+        for exName in exercises.map(\.name) {
+            let drafts = setsByExercise[exName] ?? []
+            for d in drafts {
+                let reps = Int(d.repsText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+                if reps <= 0 { continue }
+
+                let wTrim = d.weightText.trimmingCharacters(in: .whitespacesAndNewlines)
+                let weight = wTrim.isEmpty ? nil : Double(wTrim.replacingOccurrences(of: ",", with: "."))
+
+                ctx.insert(
+                    LoggedSet(
+                        sessionDate: s.startedAt,
+                        exerciseName: exName,
+                        weight: weight,
+                        reps: reps
+                    )
+                )
+            }
+        }
+
+        s.finishedAt = .now
+        dismiss()
+    }
+
+    // MARK: - Utils
+
+    private func formatWeight(_ w: Double) -> String {
+        if w.rounded() == w { return String(Int(w)) }
+        return String(w)
+    }
+
+    private func timeString(_ s: Int) -> String {
+        let m = s / 60
+        let r = s % 60
+        return String(format: "%d:%02d", m, r)
+    }
+}
+
+// MARK: - Storico
+
+struct HistoryView: View {
+    @Query(sort: \WorkoutSession.startedAt, order: .reverse) private var sessions: [WorkoutSession]
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppTheme.bg.ignoresSafeArea()
+
+                List {
+                    if sessions.isEmpty {
+                        ContentUnavailableView(
+                            "Nessun allenamento",
+                            systemImage: "clock",
+                            description: Text("Quando salvi un allenamento, lo vedrai qui.")
+                        )
+                    } else {
+                        ForEach(sessions) { s in
+                            NavigationLink {
+                                SessionDetailView(session: s)
+                            } label: {
+                                Card {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(s.planName)
+                                            .font(.headline)
+                                            .foregroundStyle(AppTheme.text)
+
+                                        Text(s.startedAt.formatted(date: .abbreviated, time: .shortened))
+                                            .foregroundStyle(AppTheme.secondaryText)
+                                    }
+                                }
+                            }
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("Storico")
+        }
+    }
+}
+
+struct SessionDetailView: View {
+    let session: WorkoutSession
+    @Query private var sets: [LoggedSet]
+
+    init(session: WorkoutSession) {
+        self.session = session
+        let sessionDate = session.startedAt
+        _sets = Query(
+            filter: #Predicate<LoggedSet> { $0.sessionDate == sessionDate },
+            sort: \.createdAt
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            AppTheme.bg.ignoresSafeArea()
+
+            List {
+                Section {
+                    Card {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Scheda: \(session.planName)")
+                                .foregroundStyle(AppTheme.text)
+
+                            Text("Inizio: \(session.startedAt.formatted(date: .abbreviated, time: .shortened))")
+                                .foregroundStyle(AppTheme.secondaryText)
+
+                            if let end = session.finishedAt {
+                                Text("Fine: \(end.formatted(date: .abbreviated, time: .shortened))")
+                                    .foregroundStyle(AppTheme.secondaryText)
+                            }
+                        }
+                    }
+                }
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
+                let grouped = Dictionary(grouping: sets, by: { $0.exerciseName })
+
+                ForEach(grouped.keys.sorted(), id: \.self) { ex in
+                    Section {
+                        Card {
+                            VStack(alignment: .leading, spacing: 10) {
+                                Text(ex)
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+
+                                let arr = grouped[ex] ?? []
+                                ForEach(Array(arr.enumerated()), id: \.offset) { idx, s in
+                                    HStack {
+                                        Text("#\(idx + 1)")
+                                            .frame(width: 36, alignment: .leading)
+                                            .foregroundStyle(AppTheme.secondaryText)
+
+                                        if let w = s.weight {
+                                            Text("\(formatWeight(w)) kg")
+                                                .frame(maxWidth: 120, alignment: .leading)
+                                                .foregroundStyle(AppTheme.text)
+                                        } else {
+                                            Text("—")
+                                                .frame(maxWidth: 120, alignment: .leading)
+                                                .foregroundStyle(AppTheme.secondaryText)
+                                        }
+
+                                        Text("\(s.reps) reps")
+                                            .foregroundStyle(AppTheme.text)
+
+                                        Spacer()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                }
+            }
+            .scrollContentBackground(.hidden)
+        }
+        .navigationTitle("Dettaglio")
+    }
+
+    private func formatWeight(_ w: Double) -> String {
+        if w.rounded() == w { return String(Int(w)) }
+        return String(w)
+    }
+}
